@@ -123,7 +123,8 @@ def handleRequest(addr):
         content = c.perform()
     except pycurl.error as e:
         c.close()
-        print (addr, e.args[1])
+        if daemon_options['curl_debug'] == True:
+            print (addr, e.args[1])
         return convertToMetrics(addr, { 'curl_errno': e.args[0] })
 
     stats = getStats(c)
@@ -151,7 +152,7 @@ async def print_request(request):
     return sanic.response.text(data.result())
 
 if __name__ == '__main__':
-    webServer.run(host='0.0.0.0', port=daemon_options['port'], workers=daemon_options['max_threads'])
+    webServer.run(host='0.0.0.0', port=daemon_options['port'], workers=daemon_options['max_threads'], access_log=daemon_options['access_log'], debug=daemon_options['webserver_debug'])
 
 
 

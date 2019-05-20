@@ -22,6 +22,9 @@ curl_attributes:
 options:
   port: 10080    # listen port
   max_threads: 4
+  curl_debug: False      # print curl exceptions
+  webserver_debug: False # print webserver debugging information
+  access_log: False      # print access log
 curl_settings:
   # https://curl.haxx.se/libcurl/c/curl_easy_setopt.html
   # do not set url here please :)
