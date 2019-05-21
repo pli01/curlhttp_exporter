@@ -125,7 +125,7 @@ def handleRequest(addr):
         c.close()
         if daemon_options['curl_debug'] == True:
             print (addr, e.args[1])
-        return convertToMetrics(addr, { 'curl_errno': e.args[0] })
+        return convertToMetrics(addr, { 'stats': { 'curl_errno': e.args[0] } } )
 
     stats = getStats(c)
     stats['stats']['curl_errno'] = 0
