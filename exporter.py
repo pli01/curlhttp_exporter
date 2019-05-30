@@ -125,7 +125,7 @@ def handleRequest(addr):
         c.close()
         if daemon_options['curl_debug'] == True:
             print (addr, e.args[1])
-        return convertToMetrics(addr, { 'curl_errno': e.args[0] })
+        return convertToMetrics(addr, { 'stats': { 'curl_errno': e.args[0] }})
 
     stats = getStats(c)
     stats['stats']['curl_errno'] = 0
@@ -133,8 +133,14 @@ def handleRequest(addr):
 
     return convertToMetrics(addr, stats)
 
+async def error_handler(request, exception):
+    if daemon_options['webserver_debug']:
+        raise exception
+
 getConfig()
+
 webServer = Sanic()
+webServer.error_handler.add(Exception, error_handler)
 executor = concurrent.futures.ThreadPoolExecutor(max_workers=daemon_options['max_threads'])
 
 @webServer.route('/')
@@ -147,9 +153,15 @@ async def print_request(request):
         return sanic.response.text("Invalid target in request")
 
     probe = probe[0]
-    data = executor.submit(handleRequest, probe)
+
+    try:
+        data = executor.submit(handleRequest, probe)
+    except:
+        if daemon_options['webserver_debug']:
+            raise
 
     return sanic.response.text(data.result())
+
 
 if __name__ == '__main__':
     webServer.run(host='0.0.0.0', port=daemon_options['port'], workers=daemon_options['max_threads'], access_log=daemon_options['access_log'], debug=daemon_options['webserver_debug'])

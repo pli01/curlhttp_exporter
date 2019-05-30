@@ -32,7 +32,7 @@ curl_settings:
   # int  -> int
   # long -> pass a float
   # string -> will be evaluated as property name first, passed as string if not found (ie. for headers)
-  opt_certinfo: 1          # get SSL information? (https requests only)
+  opt_certinfo: 0          # get SSL information? (https requests only)
   followlocation: 1        # follow redirects?
   ssl_verifypeer: 0        #
   ssl_verifyhost: 0        #
