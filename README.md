@@ -15,11 +15,15 @@ curlhttp_certinfo_expire_date{target="https://expired.badssl.com/",signature="0a
 curlhttp_certinfo_start_date{target="https://expired.badssl.com/",signature="0a::.......:74:"} 1263855600
 ```
 
-# Configure
+# Using
+
+Use docker, really.
+
+# Configuring
 
 Edit `config.yml`
 
-# Build and run
+# Building
 
 You can build and run manually, or use the `build-run` script to wipe and create the exporter image.
 
