@@ -4,9 +4,17 @@
 #  code based on implementation from https://docs.python.org/2/library/multiprocessing.html
 #
 
-import os, sys, json, yaml, pycurl, dateparser
+# tested on:
+## package versions
+# pycurl               7.43.0.2
+# pyOpenSSL            19.1.0
+# PyYAML               3.13
+# urllib3              1.25.8
+
+import os, yaml, pycurl, datetime
 import urllib.parse
 
+from OpenSSL import crypto
 from multiprocessing import Process, current_process
 from http.server import HTTPServer
 from http.server import BaseHTTPRequestHandler
@@ -60,8 +68,8 @@ class RequestHandler(BaseHTTPRequestHandler):
             print (f'{debug_message}')
 
     def parse_target(self):
-        if self.path == '/tracemalloc':
-            return 'tracemalloc'
+        # if self.path == '/tracemalloc':
+        #     return 'tracemalloc'
 
         try:
             location, params = self.path.split('?', 1)
@@ -83,36 +91,76 @@ class RequestHandler(BaseHTTPRequestHandler):
         return target_addr
 
     def get_ssl_info(self, handle):
-        explode = ['subject', 'issuer']        # to sort into a sub-dict
-        dates = ['start_date', 'expire_date']
-        strings = ['version', 'signature', 'public key algorithm', 'serial number', 'signature algorithm']
-
         certStats = []
+        certificates = []
+
+        # parsing SSL issuer as CSV in pycurl seems to be unreliable, for example:
+        # ('Subject', 'C=US, ST=CA, L=San Francisco, O=Cloudflare, Inc., CN=sni.cloudflaressl.com')
+        #              ^^^ that's invalid CSV! :(
+        # so I'm going to pipe the cert through pyOpenSSL and extract relevant info from there
         for certificate in handle.getinfo(pycurl.INFO_CERTINFO):
-            cert = { 'metrics': {}, 'labels': {} }
-            for item in certificate:
-                attribute = item[0].replace(' ', '_').lower()
-
-                if attribute in explode:
-                    for entry in item[1].split(','):
-                        entry = entry.strip()
-                        key, value = entry.split('=')
-                        key = key.strip()
-                        value = value.strip()
-                        cert['labels'][ f"{attribute}_{key.lower()}" ] = value
-                    # cert[item[0]] = dict( k.split('=') for k in item[1].split(', ') )
+            cert = {}
+            for attribute in certificate:
+                if attribute[0].lower() == 'signature':
+                    cert['signature'] = attribute[1]
                     continue 
-                if attribute in strings:
-                    cert['labels'][attribute] = item[1]
-                    continue
-                if attribute in dates:
-                    cert['labels'][attribute] = item[1] # human-readable date
-                    cert['metrics'][attribute] = int(dateparser.parse(item[1]).timestamp())
-                    continue
-                    
-            certStats.append(cert)
 
-        return certStats 
+                if attribute[0].lower() == 'cert':
+                    cert['cert'] = attribute[1]
+                
+            certificates.append( cert )
+
+        for certificate in certificates:
+            cert = crypto.load_certificate(crypto.FILETYPE_PEM, certificate['cert'])
+            
+            subject = cert.get_subject()
+            issuer = cert.get_issuer()
+
+            cert_blob = { 'metrics': {}, 'labels': { 'signature': certificate['signature'] } }
+
+            has_expired = 0
+            if cert.has_expired() == True:
+                has_expired = 1
+
+            # optimal output:
+            # curlhttp_certinfo{
+            #     subject_c="GB",
+            #     subject_st="Greater Manchester",
+            #     subject_l="Salford",
+            #     subject_o="COMODO CA Limited",
+            #     subject_cn="COMODO RSA Certification Authority",
+            #     issuer_c="GB",
+            #     issuer_st="Greater Manchester",
+            #     issuer_l="Salford",
+            #     issuer_o="COMODO CA Limited",
+            #     issuer_cn="COMODO RSA Certification Authority",
+            #     version="2",
+            #     signature="0a:.......:74:"
+            # } 1
+
+            for item in ['c', 'st', 'l', 'o', 'cn']:
+                issuer_attr = getattr( issuer, item.upper() )
+                if not issuer_attr == None:
+                    cert_blob['labels'][ f'issuer_{item}' ] = issuer_attr
+
+                subject_attr = getattr( subject, item.upper() )
+                if not subject_attr == None:
+                    cert_blob['labels'][ f'subject_{item}' ] = subject_attr
+
+            # for the timestamps:
+            #     YYYYMMDDhhmmssZ @ https://www.pyopenssl.org/en/stable/api/crypto.html#OpenSSL.crypto.X509.get_notBefore
+            # ex: 19980901120000Z
+            asn_pattern = '%Y%m%d%H%M%SZ'
+
+            cert_blob['metrics'] = {
+                'start_date': int(datetime.datetime.strptime(cert.get_notBefore().decode(), asn_pattern).timestamp()),
+                'expire_date': int(datetime.datetime.strptime(cert.get_notBefore().decode(), asn_pattern).timestamp()),
+                'expired': has_expired
+            }
+
+            certStats.append(cert_blob)
+
+        return certStats
 
     def probe_go(self, target):
         probe_metrics = { 'curl_errno': 0, 'opt_certinfo': {} }
@@ -257,11 +305,11 @@ if __name__ == '__main__':
     # read config
     stream = open(f"config.yml", "r")
 
-    docs = yaml.load_all(stream)
-    for doc in docs:
-        config_curl_attributes = doc['curl_attributes']
-        config_curl_options = doc['curl_settings']
-        config_daemon_options = doc['options']
+    # docs = yaml.load_all(stream)
+    docs = yaml.load(stream, Loader=yaml.FullLoader)
+    config_curl_attributes = docs['curl_attributes']
+    config_curl_options = docs['curl_settings']
+    config_daemon_options = docs['options']
 
     stream.close()
 
