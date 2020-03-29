@@ -2,7 +2,7 @@ Curl HTTP exporter for Prometheus. Provides some useful information such as curl
 
 ## Metrics
 
-The reported metrics are configurable in `config.yml` and represent metrics from CURL_EASY_GETINFO: https://curl.haxx.se/libcurl/c/curl_easy_getinfo.html   
+The reported metrics are configurable in `config.yml` and represent metrics from `CURL_EASY_GETINFO`: https://curl.haxx.se/libcurl/c/curl_easy_getinfo.html   
 
 This metric is always reported:
 - curl_errno
@@ -45,7 +45,7 @@ curlhttp_certinfo_expired{target="https://expired.badssl.com/",signature="0a::..
 
 ## Use case
 
-I use this exporter to monitor website availability from multiple locations, similarly to how you'd use BlackBox Exporter.
+I use this exporter to monitor website availability from multiple locations, similarly to how you'd use the BlackBox Exporter.
 
 ## Using
 
@@ -57,6 +57,7 @@ If you cannot use Docker, please ensure you have meet the tested dependencies:
 - pyopenssl 19.1.0
 - urllib3 1.25.8
 - pyyaml 5.3.1
+
 System packages:
 - libcurl 7.69.1
 - openssl 1.0.2
