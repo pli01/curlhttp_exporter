@@ -51,15 +51,15 @@ I use this exporter to monitor website availability from multiple locations, sim
 
 Use Docker, really.   
 
-If you cannot use Docker, please ensure you have meet the tested dependencies:
+If you cannot use Docker, please ensure your environment meets the tested dependencies:
 - Python 3.6
 - pycurl 7.43.0.2
 - pyopenssl 19.1.0
 - urllib3 1.25.8
-- pyyaml 5.3.1
+- pyyaml 5.3.1   
 
 System packages:
-- libcurl 7.69.1
+- libcurl 7.69.1 (on CentOS 7, this can be fetched from CityFan repo, issue #5)
 - openssl 1.0.2
 
 ## Configuring
